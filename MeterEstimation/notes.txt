@@ -1,0 +1,39 @@
+test 2 & 3
+if 2 >> 3:
+	test 4
+	if 2 >> 4:
+		return 2
+	if 4 >> 2:
+		return 4
+	test 8
+	if 4 >> 8:
+		return 4
+	return 8
+if 3 >> 2:
+	test 6
+	if 3 >> 6:
+		test 9
+		if 3 >> 9:
+			return 3
+		return 9
+	return 6
+if 2 ~~ 3:
+	test 6
+	if 2 >> 6 (and 3 >> 6):
+		if 2 > 3:
+			return 2
+		return 3
+	test 12
+	if 6 >> 12
+		return 6
+	return 12
+
+nums = [2, 3, 4, 5, 6, 7, 8, 9, 11, 12]
+test 2
+test 3
+if 2 >> 3:
+	nums -= [3, 6, 9, 12] # remove all multiples of 3
+if 3 >> 2:
+	nums -= [2, 4, 6, 8, 12] # remove all multiples of 2
+else:
+	nums -= [2, 3, 4, 8, 9] # remove all multiples of 2 XOR 3
