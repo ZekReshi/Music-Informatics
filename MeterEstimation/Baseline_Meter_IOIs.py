@@ -31,7 +31,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-FRAMERATE = 8
+FRAMERATE = 24
 CHORD_SPREAD_TIME = 0.05  # for onset aggregation
 
 
@@ -149,6 +149,37 @@ def createHMM(
     return observation_model, transition_model
 
 
+def tempi_from_iois(note_array: np.ndarray, min_tempo: float, max_tempo: float):
+    IOIs = np.diff(np.sort(note_array["onset_sec"]))
+    hist, bins = np.histogram(IOIs, bins=100)
+
+    valid_from = 0
+    for i in range(len(bins)):
+        if bins[i] >= 1 / 16:
+            valid_from = i
+            break
+
+    new_hist = []
+    new_labels = []
+    for i in range(valid_from - 1, len(hist) - 1):
+        new_hist.append((hist[i-1] + hist[i] + hist[i+1]) / 3)
+        new_labels.append((bins[i+1] + bins[i]) / 2)
+
+    peaks, _ = find_peaks(new_hist, prominence=5)
+
+    if len(peaks) == 0:
+        return []
+
+    subbeat_duration = new_labels[peaks[0]]
+    subbeats_per_minute = 60 / subbeat_duration
+    tempi = []
+    for i in range(5):
+        tempo = subbeats_per_minute / (2 ** i)
+        if min_tempo < tempo < max_tempo:
+            tempi.append(subbeats_per_minute / (2**i))
+    return tempi
+
+
 def estimate_meter(
     filename: PathLike,
     beats_per_measure: Iterable[int] = [2, 3, 4],
@@ -197,6 +228,7 @@ def estimate_meter(
         )
 
     if tempi == "auto":
+        """
         autocorr = compute_autocorrelation(frames)
         beat_period, _ = find_peaks(autocorr[1:], prominence=None)
         tempi = 60 * framerate / (beat_period + 1)
@@ -204,6 +236,11 @@ def estimate_meter(
 
         if len(tempi) == 0:
             tempi = np.linspace(min_tempo, max_tempo, 10)
+        """
+        tempi = tempi_from_iois(note_array, min_tempo, max_tempo)
+        if len(tempi) == 0:
+            print("ERROR: NO TEMPI FOR " + filename)
+            return 0, 0
 
     likelihoods = []
 
