@@ -11,7 +11,7 @@ import partitura as pt
 NOTEBOOK_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-def compute_autocorrelation(x: np.ndarray) -> np.ndarray:
+def compute_autocorrelation(x: np.ndarray, mode: str = "full") -> np.ndarray:
     """
     Compute non-normalized autocorrelation (consider only positive lags)
 
@@ -25,7 +25,7 @@ def compute_autocorrelation(x: np.ndarray) -> np.ndarray:
     result : np.ndarray
         Autocorrelation
     """
-    result = np.correlate(x, x, mode="full")
+    result = np.correlate(x, x, mode=mode)
     # Consider only positive lags
     result = result[result.shape[0] // 2 :]
 
@@ -111,7 +111,7 @@ def get_frames_chordify(
         if abs(note_on - prev_note_on) < chord_spread_time:
 
             if aggregation == "num_notes":
-                agg_val = 1
+                agg_val = 2
             elif aggregation == "sum_vel":
                 agg_val = prev_note_vel + note_vel
             elif aggregation == "max_vel":
