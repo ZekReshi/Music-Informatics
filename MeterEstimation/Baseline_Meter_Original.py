@@ -31,7 +31,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-FRAMERATE = 24
+FRAMERATE = 8
 CHORD_SPREAD_TIME = 0.05  # for onset aggregation
 
 
@@ -46,14 +46,14 @@ class MeterObservationModel(ObservationModel):
         super().__init__()
         self.states = states
         # observation 1 = note onset present, 0 = nothing present
-        self.probabilities = np.ones((4, states)) / 100
+        self.probabilities = np.ones((2, states)) / 100
         self.probabilities[0, :] = 0.99
         for idx in subbeat_idx:
-            self.probabilities[:, idx] = [0.5, 0.35, 0.1, 0.05]
+            self.probabilities[:, idx] = [0.5, 0.5]
         for idx in beat_idx:
-            self.probabilities[:, idx] = [0.3, 0.3, 0.3, 0.1]
+            self.probabilities[:, idx] = [0.3, 0.7]
         for idx in downbeat_idx:
-            self.probabilities[:, idx] = [0.1, 0.2, 0.35, 0.35]
+            self.probabilities[:, idx] = [0.1, 0.9]
         self.db = downbeat_idx
         self.b = beat_idx
         self.sb = subbeat_idx
@@ -149,56 +149,9 @@ def createHMM(
     return observation_model, transition_model
 
 
-def tempi_from_iois(note_array: np.ndarray, min_tempo: float, max_tempo: float):
-    IOIs = np.diff(np.sort(note_array["onset_sec"]))
-    hist, bins = np.histogram(IOIs, bins=100)
-
-    valid_from = 0
-    for i in range(len(bins)):
-        if bins[i] >= 1 / 16:
-            valid_from = i
-            break
-
-    new_hist = []
-    new_labels = []
-    for i in range(valid_from - 1, len(hist) - 1):
-        new_hist.append((hist[i-1] + hist[i] + hist[i+1]) / 3)
-        new_labels.append((bins[i+1] + bins[i]) / 2)
-
-    peaks, _ = find_peaks(new_hist, prominence=5)
-
-    if len(peaks) == 0:
-        return []
-
-    subbeat_duration = new_labels[peaks[0]]
-    subbeats_per_minute = 60 / subbeat_duration
-    tempi = []
-    for i in range(5):
-        tempo = subbeats_per_minute / (2 ** i)
-        if min_tempo < tempo < max_tempo:
-            tempi.append(subbeats_per_minute / (2**i))
-    return tempi
-
-
-def subbeats_from_durations(note_array: np.ndarray):
-    durations = note_array["duration_sec"]
-    hist, bins = np.histogram(durations, bins=100)
-
-    peaks, _ = find_peaks(hist, prominence=20)
-
-    if len(peaks) > 1:
-        candidate = bins[peaks[1]] / bins[peaks[0]]
-        if 1.9 < candidate < 2.1:
-            return [2]
-        if 2.9 < candidate < 3.1:
-            return[3]
-    return [2, 3]
-
-
-
 def estimate_meter(
     filename: PathLike,
-    beats_per_measure: Iterable[int] = [2, 3, 4, 6],
+    beats_per_measure: Iterable[int] = [2, 3, 4],
     subbeats_per_beat: Iterable[int] = [2, 3],
     tempi: Union[Iterable[int], str] = "auto",
     frame_aggregation: str = "chordify",
@@ -244,7 +197,6 @@ def estimate_meter(
         )
 
     if tempi == "auto":
-        """
         autocorr = compute_autocorrelation(frames)
         beat_period, _ = find_peaks(autocorr[1:], prominence=None)
         tempi = 60 * framerate / (beat_period + 1)
@@ -252,13 +204,6 @@ def estimate_meter(
 
         if len(tempi) == 0:
             tempi = np.linspace(min_tempo, max_tempo, 10)
-        """
-        tempi = tempi_from_iois(note_array, min_tempo, max_tempo)
-        if len(tempi) == 0:
-            print("ERROR: NO TEMPI FOR " + filename)
-            return 4, 120
-
-    #subbeats_per_beat = subbeats_from_durations(note_array)
 
     likelihoods = []
 
@@ -302,7 +247,7 @@ def process_file(
     Compute meter and get evaluation for
     """
     piece = os.path.basename(mfn)
-    predicted_meter, predicted_tempo = estimate_meter(filename=mfn, value_aggregation="salience")
+    predicted_meter, predicted_tempo = estimate_meter(filename=mfn)
 
     meter_accuracy = None
     tempo_error = None
@@ -387,27 +332,25 @@ if __name__ == "__main__":
         )
 
     results = [res[:3] for res in results_]
+    evaluation = [res[3:] for res in results_]
 
-    if args.ground_truth:
-        evaluation = [res[3:] for res in results_]
+    for (piece, predicted_meter, predicted_tempo), (meter_accuracy, tempo_error) in zip(
+        results, evaluation
+    ):
+        expected_meter, expected_tempo = ground_truth[piece]
+        if meter_accuracy is not None:
+            print(
+                f"{piece}: "
+                f"\tPredicted:{predicted_meter} {predicted_tempo:.2f}"
+                f"\tExpected:{expected_meter} {expected_tempo:.2f}"
+                f"\tTempo error:{tempo_error}"
+            )
 
-        for (piece, predicted_meter, predicted_tempo), (meter_accuracy, tempo_error) in zip(
-            results, evaluation
-        ):
-            expected_meter, expected_tempo = ground_truth[piece]
-            if meter_accuracy is not None:
-                print(
-                    f"{piece}: "
-                    f"\tPredicted:{predicted_meter} {predicted_tempo:.2f}"
-                    f"\tExpected:{expected_meter} {expected_tempo:.2f}"
-                    f"\tTempo error:{tempo_error}"
-                )
-
-        mean_eval = np.mean(evaluation, 0)
-        if len(evaluation) > 0:
-            print("\n\nAverage Performance over dataset")
-            print(f"\tMeter accuracy{mean_eval[0] * 100: .1f}")
-            print(f"\tTempo error: {mean_eval[1]: .2f}")
+    mean_eval = np.mean(evaluation, 0)
+    if len(evaluation) > 0:
+        print("\n\nAverage Performance over dataset")
+        print(f"\tMeter accuracy{mean_eval[0] * 100: .1f}")
+        print(f"\tTempo error: {mean_eval[1]: .2f}")
 
     if args.challenge:
         # Export predictions for the challenge

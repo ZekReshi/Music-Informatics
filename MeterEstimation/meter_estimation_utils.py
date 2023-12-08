@@ -79,9 +79,9 @@ def get_frames_chordify(
     threshold: float = 0.0,
 ) -> np.ndarray:
 
-    if aggregation not in ("num_notes", "sum_vel", "max_vel"):
+    if aggregation not in ("num_notes", "sum_vel", "max_vel", "salience"):
         raise ValueError(
-            "`aggregation` must be 'num_notes', 'sum_vel', 'max_vel' "
+            "`aggregation` must be 'num_notes', 'sum_vel', 'max_vel', 'salience' "
             f"but is {aggregation}"
         )
 
@@ -101,21 +101,32 @@ def get_frames_chordify(
 
     onsets = onsets[sort_idx]
     velocity = note_array["velocity"][sort_idx]
+    duration = note_array["duration_sec"][sort_idx]
+
+    avg_duration = np.average(duration)
+    avg_velocity = np.average(velocity)
 
     # (onset, agg_val)
     aggregated_notes = [(0, 0)]
 
-    for (note_on, note_vel) in zip(onsets, velocity):
+    for (note_on, note_vel, note_duration) in zip(onsets, velocity, duration):
         prev_note_on = aggregated_notes[-1][0]
         prev_note_vel = aggregated_notes[-1][1]
         if abs(note_on - prev_note_on) < chord_spread_time:
 
             if aggregation == "num_notes":
-                agg_val = 2
+                agg_val = 1
             elif aggregation == "sum_vel":
                 agg_val = prev_note_vel + note_vel
             elif aggregation == "max_vel":
                 agg_val = note_vel if note_vel > prev_note_vel else prev_note_vel
+            elif aggregation == "salience":
+                agg_val = aggregated_notes[-1][1]
+                if note_duration > 1.5 * avg_duration:
+                    agg_val += 1
+                if note_vel > 1.5 * avg_velocity:
+                    agg_val += 1
+                agg_val = min(3, agg_val)
             
             aggregated_notes[-1] = (note_on, agg_val)
         else:
@@ -124,6 +135,12 @@ def get_frames_chordify(
                 agg_val = 1
             elif aggregation in ("sum_vel", "max_vel"):
                 agg_val = note_vel
+            elif aggregation == "salience":
+                agg_val = 1
+                if note_duration > 1.5 * avg_duration:
+                    agg_val += 1
+                if note_vel > 1.5 * avg_velocity:
+                    agg_val += 1
 
             aggregated_notes.append((note_on, agg_val))
 

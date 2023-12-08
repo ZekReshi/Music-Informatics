@@ -54,6 +54,39 @@ def iois(performance: Performance):
     plt.show()
 
 
+def durations(performance: Performance):
+    note_array = performance.note_array()
+
+    durations = note_array["duration_sec"]
+    hist, bins = np.histogram(durations, bins=100)
+
+    peaks, _ = find_peaks(hist, prominence=20)
+
+    print([bins[peak] for peak in peaks])
+
+    fig, ax = plt.subplots()
+    ax.hist(durations, bins=bins)
+    ax.set_xlabel("Durations (s)")
+    ax.set_ylabel("Count")
+    plt.show()
+
+
+def subbeats_from_durations(note_array: np.ndarray):
+    durations = note_array["duration_sec"]
+    hist, bins = np.histogram(durations, bins=100)
+
+    peaks, _ = find_peaks(hist, prominence=20)
+
+    if len(peaks) > 1:
+        candidate = bins[peaks[1]] / bins[peaks[0]]
+        print(candidate)
+        if 1.9 < candidate < 2.1:
+            return [2]
+        if 2.9 < candidate < 3.1:
+            return [3]
+    return [2, 3]
+
+
 def quantize(performance: Performance):
     note_array = performance.note_array()
 
@@ -274,9 +307,9 @@ def get_frames_chordify(
         aggregation="num_notes",
         threshold: float = 0.0,
 ) -> np.ndarray:
-    if aggregation not in ("num_notes", "sum_vel", "max_vel", "max_pitch"):
+    if aggregation not in ("num_notes", "sum_vel", "max_vel", "max_pitch", "max_duration", "salience"):
         raise ValueError(
-            "`aggregation` must be 'num_notes', 'sum_vel', 'max_vel', 'max_pitch' "
+            "`aggregation` must be 'num_notes', 'sum_vel', 'max_vel', 'max_pitch', 'max_duration', 'salience' "
             f"but is {aggregation}"
         )
 
@@ -298,6 +331,9 @@ def get_frames_chordify(
     duration = note_array["duration_sec"][sort_idx]
     pitch = note_array["pitch"][sort_idx]
 
+    avg_duration = np.average(duration)
+    avg_velocity = np.average(velocity)
+
     # (onset, agg_val)
     aggregated_notes = [(0, 0)]
 
@@ -314,6 +350,15 @@ def get_frames_chordify(
                 agg_val = note_vel if note_vel > prev_note_vel else prev_note_vel
             elif aggregation == "max_pitch":
                 agg_val = max(prev_note_vel, note_pitch)
+            elif aggregation == "max_duration":
+                agg_val = max(prev_note_vel, note_duration)
+            elif aggregation == "salience":
+                agg_val = aggregated_notes[-1][1]# + 1
+                if note_duration > 1.5 * avg_duration:
+                    agg_val += 1
+                if note_vel > 1.5 * avg_velocity:
+                    agg_val += 1
+                agg_val = min(3, agg_val)
 
             aggregated_notes[-1] = (note_on, agg_val)
         else:
@@ -324,6 +369,14 @@ def get_frames_chordify(
                 agg_val = note_vel
             elif aggregation == "max_pitch":
                 agg_val = note_pitch
+            elif aggregation == "max_duration":
+                agg_val = note_duration
+            elif aggregation == "salience":
+                agg_val = 1
+                if note_duration > 1.5 * avg_duration:
+                    agg_val += 1
+                if note_vel > 1.5 * avg_velocity:
+                    agg_val += 1
 
             aggregated_notes.append((note_on, agg_val))
 
@@ -466,11 +519,25 @@ def pianoroll(performance: Performance):
 
     frames_max_vel = get_frames_chordify(
         note_array,
+        chord_spread_time=get_chord_spread_time(p),
     aggregation="max_vel")
 
     frames_max_pitch = get_frames_chordify(
         note_array,
+        chord_spread_time=get_chord_spread_time(p),
     aggregation="max_pitch")
+
+    frames_max_duration = get_frames_chordify(
+        note_array,
+        chord_spread_time=get_chord_spread_time(p),
+        aggregation="max_duration"
+    )
+
+    frames_salience = get_frames_chordify(
+        note_array,
+        chord_spread_time=get_chord_spread_time(p),
+        aggregation="salience"
+    )
 
     fig, ax = plt.subplots(
         nrows=5,
@@ -493,18 +560,18 @@ def pianoroll(performance: Performance):
         np.arange(0, len(frames), 100) / time_div,
     )
     ax[1].plot(frames, color="firebrick")
-    ax[2].set_ylabel("Simultaneous played notes")
+    ax[2].set_ylabel("Max Duration")
     ax[2].set_xticks(
-        np.arange(0, len(frames_norm), 100),
-        np.arange(0, len(frames_norm), 100) / time_div,
+        np.arange(0, len(frames_max_duration), 100),
+        np.arange(0, len(frames_max_duration), 100) / time_div,
     )
-    ax[2].plot(frames_norm, color="firebrick")
-    ax[3].set_ylabel("Max Pitch")
+    ax[2].plot(frames_max_duration, color="firebrick")
+    ax[3].set_ylabel("Salience")
     ax[3].set_xticks(
-        np.arange(0, len(frames_max_pitch), 100),
-        np.arange(0, len(frames_max_pitch), 100) / time_div,
+        np.arange(0, len(frames_salience), 100),
+        np.arange(0, len(frames_salience), 100) / time_div,
     )
-    ax[3].plot(frames_max_pitch, color="firebrick")
+    ax[3].plot(frames_salience, color="firebrick")
     ax[4].set_ylabel("Max vel")
     ax[4].set_xticks(
         np.arange(0, len(frames_max_vel), 100),
@@ -592,13 +659,7 @@ if __name__ == '__main__':
         path_to_dataset,
         "train"
     )
-    path_to_result = os.path.join(
-        path_to_dataset,
-        "result.txt"
-    )
 
-    with open(path_to_result, "w") as f:
-        f.write("//filename,key,ts_num,ts_denom,tempo(bpm)\n")
     i = 0
     for piece in os.listdir(path_to_train):
         if not piece.endswith('.mid'):
@@ -613,10 +674,11 @@ if __name__ == '__main__':
             piece
         )
         p: Performance = pt.load_performance(path_to_piece)
+        print(subbeats_from_durations(p.note_array()))
+        durations(p)
         #pianoroll(p)
         #print(get_chord_spread_time(p))
-        iois(p)
-        #pianoroll(p)
+        #iois(p)
         #print(autocorr(p))
         continue
         ts, tempo = meter_identification(
@@ -625,7 +687,3 @@ if __name__ == '__main__':
             p,
             chord_spread_time=get_chord_spread_time(p))
         print(f"{time.time() - start} seconds")
-
-        with open(path_to_result, "a") as f:
-            f.write(f"{piece},,{str(ts)},,{str(tempo)}\n")
-            f.flush()
