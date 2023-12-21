@@ -102,16 +102,20 @@ def get_frames_chordify(
     onsets = onsets[sort_idx]
     velocity = note_array["velocity"][sort_idx]
     duration = note_array["duration_sec"][sort_idx]
+    pitch = note_array["pitch"][sort_idx]
 
     avg_duration = np.average(duration)
     avg_velocity = np.average(velocity)
 
-    # (onset, agg_val)
-    aggregated_notes = [(0, 0)]
+    # (onset, agg_val, longest_duration, sum_vel, lowest_pitch)
+    aggregated_notes = [(0, 0, 0, 0, 0)]
 
-    for (note_on, note_vel, note_duration) in zip(onsets, velocity, duration):
+    for (note_on, note_vel, note_duration, note_pitch) in zip(onsets, velocity, duration, pitch):
         prev_note_on = aggregated_notes[-1][0]
         prev_note_vel = aggregated_notes[-1][1]
+        prev_longest_duration = aggregated_notes[-1][2]
+        prev_sum_vel = aggregated_notes[-1][3]
+        prev_lowest_pitch = aggregated_notes[-1][4]
         if abs(note_on - prev_note_on) < chord_spread_time:
 
             if aggregation == "num_notes":
@@ -127,8 +131,12 @@ def get_frames_chordify(
                 if note_vel > 1.5 * avg_velocity:
                     agg_val += 1
                 agg_val = min(3, agg_val)
-            
-            aggregated_notes[-1] = (note_on, agg_val)
+            elif aggregation == "salience_add":
+                agg_val = 300 * max(prev_longest_duration, note_duration) - 4 * max(48, min(72, prev_lowest_pitch, note_pitch)) + 1 * (prev_note_vel + note_vel)
+            elif aggregation == "salience_mul":
+                agg_val = max(prev_longest_duration, note_duration) * (84 - max(48, min(72, prev_lowest_pitch, note_pitch))) * math.log(prev_note_vel + note_vel)
+
+            aggregated_notes[-1] = (note_on, agg_val, max(prev_longest_duration, note_duration), prev_sum_vel + note_vel, min(prev_lowest_pitch, note_pitch))
         else:
 
             if aggregation == "num_notes":
@@ -141,8 +149,12 @@ def get_frames_chordify(
                     agg_val += 1
                 if note_vel > 1.5 * avg_velocity:
                     agg_val += 1
+            elif aggregation == "salience_add":
+                agg_val = 300 * note_duration - 4 * max(48, min(72, note_pitch)) + 1 * note_vel
+            elif aggregation == "salience_mul":
+                agg_val = note_duration * (84 - max(48, min(72, note_pitch))) * math.log(note_vel)
 
-            aggregated_notes.append((note_on, agg_val))
+            aggregated_notes.append((note_on, agg_val, note_duration, note_vel, note_pitch))
 
     frames = np.zeros(int(onsets.max() * framerate) + 1)
     for note in aggregated_notes:

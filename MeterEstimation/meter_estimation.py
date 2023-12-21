@@ -9,6 +9,7 @@ import numpy as np
 from meter_estimation_utils import compute_autocorrelation
 from scipy.signal import find_peaks
 import time
+import math
 
 from hiddenmarkov import HMM, ConstantTransitionModel, ObservationModel
 
@@ -307,9 +308,9 @@ def get_frames_chordify(
         aggregation="num_notes",
         threshold: float = 0.0,
 ) -> np.ndarray:
-    if aggregation not in ("num_notes", "sum_vel", "max_vel", "max_pitch", "max_duration", "salience"):
+    if aggregation not in ("num_notes", "sum_vel", "max_vel", "max_pitch", "max_duration", "salience", "salience_add", "salience_mul"):
         raise ValueError(
-            "`aggregation` must be 'num_notes', 'sum_vel', 'max_vel', 'max_pitch', 'max_duration', 'salience' "
+            "`aggregation` must be 'num_notes', 'sum_vel', 'max_vel', 'max_pitch', 'max_duration', 'salience', 'salience_add', 'salience_mul' "
             f"but is {aggregation}"
         )
 
@@ -334,12 +335,15 @@ def get_frames_chordify(
     avg_duration = np.average(duration)
     avg_velocity = np.average(velocity)
 
-    # (onset, agg_val)
-    aggregated_notes = [(0, 0)]
+    # (onset, agg_val, longest_duration, sum_vel, lowest_pitch)
+    aggregated_notes = [(0, 0, 0, 0, 0)]
 
     for (note_on, note_vel, note_duration, note_pitch) in zip(onsets, velocity, duration, pitch):
         prev_note_on = aggregated_notes[-1][0]
         prev_note_vel = aggregated_notes[-1][1]
+        prev_longest_duration = aggregated_notes[-1][2]
+        prev_sum_vel = aggregated_notes[-1][3]
+        prev_lowest_pitch = aggregated_notes[-1][4]
         if abs(note_on - prev_note_on) < chord_spread_time:
 
             if aggregation == "num_notes":
@@ -359,8 +363,12 @@ def get_frames_chordify(
                 if note_vel > 1.5 * avg_velocity:
                     agg_val += 1
                 agg_val = min(3, agg_val)
+            elif aggregation == "salience_add":
+                agg_val = 300 * max(prev_longest_duration, note_duration) - 4 * max(48, min(72, prev_lowest_pitch, note_pitch)) + 1 * (prev_note_vel + note_vel)
+            elif aggregation == "salience_mul":
+                agg_val = max(prev_longest_duration, note_duration) * (84 - max(48, min(72, prev_lowest_pitch, note_pitch))) * math.log(prev_note_vel + note_vel)
 
-            aggregated_notes[-1] = (note_on, agg_val)
+            aggregated_notes[-1] = (note_on, agg_val, max(prev_longest_duration, note_duration), prev_sum_vel + note_vel, min(prev_lowest_pitch, note_pitch))
         else:
 
             if aggregation == "num_notes":
@@ -377,8 +385,12 @@ def get_frames_chordify(
                     agg_val += 1
                 if note_vel > 1.5 * avg_velocity:
                     agg_val += 1
+            elif aggregation == "salience_add":
+                agg_val = 300 * note_duration - 4 * max(48, min(72, note_pitch)) + 1 * note_vel
+            elif aggregation == "salience_mul":
+                agg_val = note_duration * (84 - max(48, min(72, note_pitch))) * math.log(note_vel)
 
-            aggregated_notes.append((note_on, agg_val))
+            aggregated_notes.append((note_on, agg_val, note_duration, note_vel, note_pitch))
 
     frames = np.zeros(int(onsets.max() * framerate) + 1)
     for note in aggregated_notes:
@@ -533,10 +545,16 @@ def pianoroll(performance: Performance):
         aggregation="max_duration"
     )
 
-    frames_salience = get_frames_chordify(
+    frames_salience_add = get_frames_chordify(
         note_array,
         chord_spread_time=get_chord_spread_time(p),
-        aggregation="salience"
+        aggregation="salience_add"
+    )
+
+    frames_salience_mul = get_frames_chordify(
+        note_array,
+        chord_spread_time=get_chord_spread_time(p),
+        aggregation="salience_mul"
     )
 
     fig, ax = plt.subplots(
@@ -554,30 +572,42 @@ def pianoroll(performance: Performance):
     )
     ax[1].set_xlabel("Time (s)")
     ax[0].set_ylabel("MIDI pitch")
-    ax[1].set_ylabel("Simultaneous played notes")
+    ax[1].set_ylabel("Salience Add")
     ax[1].set_xticks(
-        np.arange(0, len(frames), 100),
-        np.arange(0, len(frames), 100) / time_div,
+        np.arange(0, len(frames_salience_add), 100),
+        np.arange(0, len(frames_salience_add), 100) / time_div,
     )
-    ax[1].plot(frames, color="firebrick")
-    ax[2].set_ylabel("Max Duration")
+    ax[1].plot(frames_salience_add, color="firebrick")
+    salience_add_mean = np.mean(frames_salience_add[frames_salience_add != 0])
+    ax[1].plot([salience_add_mean] * len(frames_salience_add))
+    salience_add_downbeats = frames_salience_add.copy()
+    salience_add_downbeats[frames_salience_add < salience_add_mean] = 0.5
+    salience_add_downbeats[frames_salience_add >= salience_add_mean] = 1
+    salience_add_downbeats[frames_salience_add == 0] = 0
+    ax[2].set_ylabel("Salience Add Downbeats")
     ax[2].set_xticks(
-        np.arange(0, len(frames_max_duration), 100),
-        np.arange(0, len(frames_max_duration), 100) / time_div,
+        np.arange(0, len(salience_add_downbeats), 100),
+        np.arange(0, len(salience_add_downbeats), 100) / time_div,
     )
-    ax[2].plot(frames_max_duration, color="firebrick")
-    ax[3].set_ylabel("Salience")
+    ax[2].plot(salience_add_downbeats, color="firebrick")
+    ax[3].set_ylabel("Salience Mul")
     ax[3].set_xticks(
-        np.arange(0, len(frames_salience), 100),
-        np.arange(0, len(frames_salience), 100) / time_div,
+        np.arange(0, len(frames_salience_mul), 100),
+        np.arange(0, len(frames_salience_mul), 100) / time_div,
     )
-    ax[3].plot(frames_salience, color="firebrick")
-    ax[4].set_ylabel("Max vel")
+    ax[3].plot(frames_salience_mul, color="firebrick")
+    salience_mul_mean = np.mean(frames_salience_mul[frames_salience_mul != 0])
+    ax[3].plot([salience_mul_mean] * len(frames_salience_mul))
+    salience_mul_downbeats = frames_salience_mul.copy()
+    salience_mul_downbeats[frames_salience_mul < salience_mul_mean] = 0.5
+    salience_mul_downbeats[frames_salience_mul >= salience_mul_mean] = 1
+    salience_mul_downbeats[frames_salience_mul == 0] = 0
+    ax[4].set_ylabel("Salience Mul Downbeats")
     ax[4].set_xticks(
-        np.arange(0, len(frames_max_vel), 100),
-        np.arange(0, len(frames_max_vel), 100) / time_div,
+        np.arange(0, len(salience_mul_downbeats), 100),
+        np.arange(0, len(salience_mul_downbeats), 100) / time_div,
     )
-    ax[4].plot(frames_max_vel, color="firebrick")
+    ax[4].plot(salience_mul_downbeats, color="firebrick")
     plt.tight_layout()
     plt.show()
 
@@ -674,12 +704,12 @@ if __name__ == '__main__':
             piece
         )
         p: Performance = pt.load_performance(path_to_piece)
-        print(subbeats_from_durations(p.note_array()))
-        durations(p)
-        #pianoroll(p)
+        #print(subbeats_from_durations(p.note_array()))
+        #durations(p)
+        pianoroll(p)
         #print(get_chord_spread_time(p))
         #iois(p)
-        #print(autocorr(p))
+        print(autocorr(p))
         continue
         ts, tempo = meter_identification(
             p)

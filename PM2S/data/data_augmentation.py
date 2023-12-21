@@ -46,8 +46,6 @@ class DataAugmentation:
     def tempo_change(self, note_sequence, annotations):
         tempo_change_ratio = random.uniform(*self.tempo_change_range)
         note_sequence[:, 1:3] *= 1 / tempo_change_ratio
-        annotations['beats'] *= 1 / tempo_change_ratio
-        annotations['downbeats'] *= 1 / tempo_change_ratio
         annotations['time_signatures'][:, 0] *= 1 / tempo_change_ratio
         annotations['key_signatures'][:, 0] *= 1 / tempo_change_ratio
         return note_sequence, annotations
@@ -68,22 +66,10 @@ class DataAugmentation:
         note_sequence_new[::2, :] = np.copy(note_sequence)  # original notes
         note_sequence_new[1::2, :] = np.copy(note_sequence)  # extra notes
 
-        if annotations['onsets_musical'] is not None:
-            onsets_musical_new = np.zeros(len(note_sequence) * 2)
-            onsets_musical_new[::2] = np.copy(annotations['onsets_musical'])
-            onsets_musical_new[1::2] = np.copy(annotations['onsets_musical'])
-
         if annotations['note_value'] is not None:
             note_value_new = np.zeros(len(note_sequence) * 2)
             note_value_new[::2] = np.copy(annotations['note_value'])
             note_value_new[1::2] = np.copy(annotations['note_value'])
-
-        if annotations['hands'] is not None:
-            hands_new = np.zeros(len(note_sequence) * 2)
-            hands_new[::2] = np.copy(annotations['hands'])
-            hands_new[1::2] = np.copy(annotations['hands'])
-            hands_mask = np.ones(len(note_sequence) * 2)  # mask out hand for extra notes during training
-            hands_mask[1::2] = 0
 
         # pitch shift for extra notes (+-12)
         shift = ((np.round(np.random.random(len(note_sequence_new))) - 0.5) * 24).astype(int)
@@ -98,13 +84,8 @@ class DataAugmentation:
         probs[::2] = 0.
         remaining = probs < ratio
         note_sequence_new = note_sequence_new[remaining]
-        if annotations['onsets_musical'] is not None:
-            annotations['onsets_musical'] = onsets_musical_new[remaining]
         if annotations['note_value'] is not None:
             annotations['note_value'] = note_value_new[remaining]
-        if annotations['hands'] is not None:
-            annotations['hands'] = hands_new[remaining]
-            annotations['hands_mask'] = hands_mask[remaining]
 
         return note_sequence_new, annotations
 
@@ -119,11 +100,7 @@ class DataAugmentation:
 
         # remove selected candidates
         note_sequence = note_sequence[remaining]
-        if annotations['onsets_musical'] is not None:
-            annotations['onsets_musical'] = annotations['onsets_musical'][remaining]
         if annotations['note_value'] is not None:
             annotations['note_value'] = annotations['note_value'][remaining]
-        if annotations['hands'] is not None:
-            annotations['hands'] = annotations['hands'][remaining]
 
         return note_sequence, annotations

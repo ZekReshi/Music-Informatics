@@ -10,7 +10,7 @@ import partitura as pt
 import numpy as np
 
 from PM2S.configs import *
-#from data.data_augmentation import DataAugmentation
+from PM2S.data.data_augmentation import DataAugmentation
 
 
 class BaseDataset(torch.utils.data.Dataset):
@@ -33,7 +33,7 @@ class BaseDataset(torch.utils.data.Dataset):
         self.pieces = list(self.piece2row.keys())
 
         # Initialise data augmentation
-        #self.dataaug = DataAugmentation()
+        self.dataaug = DataAugmentation(extra_note_prob=0, missing_note_prob=0)
 
     def __len__(self):
         if self.split == 'train' or self.split == 'all':
@@ -42,7 +42,7 @@ class BaseDataset(torch.utils.data.Dataset):
 
         elif self.split == 'valid':
             # by istinct pieces in validation set
-            return batch_size * len(self.piece2row)  # valid dataset size
+            return batch_size * len(self.piece2row) // 10  # valid dataset size
 
         elif self.split == 'test':
             return len(self.metadata)
@@ -72,8 +72,8 @@ class BaseDataset(torch.utils.data.Dataset):
         }
 
         # Data augmentation
-        #if self.split == 'train' or self.split == 'all':
-        #    note_sequence, annotations = self.dataaug(note_sequence, annotations)
+        if self.split == 'train' or self.split == 'all':
+            note_sequence, annotations = self.dataaug(note_sequence, annotations)
 
         # Randomly sample a segment that is at most max_length long
         if self.split == 'train' or self.split == 'all':

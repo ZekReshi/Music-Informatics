@@ -45,7 +45,7 @@ class MeterObservationModel(ObservationModel):
     ):
         super().__init__()
         self.states = states
-        # observation 1 = note onset present, 0 = nothing present
+        # observation 3 = very salient, 2 = pretty salient, 1 = just an onset, 0 = nothing present
         self.probabilities = np.ones((4, states)) / 100
         self.probabilities[0, :] = 0.99
         for idx in subbeat_idx:
@@ -53,7 +53,7 @@ class MeterObservationModel(ObservationModel):
         for idx in beat_idx:
             self.probabilities[:, idx] = [0.3, 0.3, 0.3, 0.1]
         for idx in downbeat_idx:
-            self.probabilities[:, idx] = [0.1, 0.2, 0.35, 0.35]
+            self.probabilities[:, idx] = [0.05, 0.2, 0.35, 0.4]
         self.db = downbeat_idx
         self.b = beat_idx
         self.sb = subbeat_idx
@@ -261,6 +261,8 @@ def estimate_meter(
     #subbeats_per_beat = subbeats_from_durations(note_array)
 
     likelihoods = []
+    best_lik = 0
+    best_path = None
 
     for ts_num in beats_per_measure:
         for sbpb in subbeats_per_beat:
@@ -277,13 +279,13 @@ def estimate_meter(
                     transition_model=transition_model,
                 )
 
-                frames[frames < 1.0] = 0
-                frames[frames >= 1.0] = 1
-
                 observations = np.array(frames, dtype=int)
-                _, log_lik = hmm.find_best_sequence(observations)
+                path, log_lik = hmm.find_best_sequence(observations)
 
                 likelihoods.append((ts_num, sbpb, tempo, log_lik))
+                if log_lik > best_lik:
+                    best_lik = log_lik
+                    best_path = path
 
     likelihoods = np.array(likelihoods)
 

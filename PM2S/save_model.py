@@ -27,7 +27,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Save a model as state dict.')
 
     parser.add_argument('--model_checkpoint_path', type=str, help='Path to model checkpoint.')
-    parser.add_argument('--beat_model_checkpoint', type=str, help='Path to beat model checkpoint.', default='../_model_state_dicts/beat/RNNJointBeatModel.pth')
     parser.add_argument('--feature', type=str, help='Feature type.')
 
     args = parser.parse_args()
