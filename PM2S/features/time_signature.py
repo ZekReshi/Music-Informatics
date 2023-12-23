@@ -82,12 +82,12 @@ if __name__ == '__main__':
         last_onset, last_ts_num = time_signature_changes[0]
         durations = {}
         for onset, ts_num in time_signature_changes[1:]:
-            if not last_ts_num in durations.keys():
+            if last_ts_num not in durations.keys():
                 durations[last_ts_num] = 0
             durations[last_ts_num] += onset - last_onset
             last_onset = onset
             last_ts_num = ts_num
-        if not last_ts_num in durations.keys():
+        if last_ts_num not in durations.keys():
             durations[last_ts_num] = 0
         durations[last_ts_num] += length - last_onset
 
@@ -104,11 +104,12 @@ if __name__ == '__main__':
 
         results.append((os.path.basename(file), best_ts_num, 120))
 
-    np.savetxt(
-        args.outfile,
-        np.array(results),
-        fmt="%s",
-        delimiter=",",
-        comments="//",
-        header="filename,ts_num,tempo(bpm)",
-    )
+    if args.outfile:
+        np.savetxt(
+            args.outfile,
+            np.array(results),
+            fmt="%s",
+            delimiter=",",
+            comments="//",
+            header="filename,ts_num,tempo(bpm)",
+        )
