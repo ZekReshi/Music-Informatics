@@ -1,10 +1,14 @@
 import pytorch_lightning as pl
 import os, sys
+
+import torch
+
+from PM2S.modules.utils import configure_callbacks, configure_optimizers, classification_report_framewise
+
 sys.path.insert(0, os.path.join(sys.path[0], '..'))
 import torch.nn as nn
 
 from PM2S.models.key_signature import RNNKeySignatureModel
-from PM2S.models.utils import *
 
 
 class KeySignatureModule(pl.LightningModule):

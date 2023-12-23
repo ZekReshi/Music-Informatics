@@ -77,9 +77,32 @@ if __name__ == '__main__':
 
         time_signature_changes = processor_time_sig.process(note_sequence)
 
+        length = note_sequence[-1][1] + note_sequence[-1][2]
+
+        last_onset, last_ts_num = time_signature_changes[0]
+        durations = {}
+        for onset, ts_num in time_signature_changes[1:]:
+            if not last_ts_num in durations.keys():
+                durations[last_ts_num] = 0
+            durations[last_ts_num] += onset - last_onset
+            last_onset = onset
+            last_ts_num = ts_num
+        if not last_ts_num in durations.keys():
+            durations[last_ts_num] = 0
+        durations[last_ts_num] += length - last_onset
+
+        best_duration, best_ts_num = 0, 0
+        for ts_num, duration in durations.items():
+            if duration > best_duration:
+                best_duration = duration
+                best_ts_num = ts_num
+
         print("Time signature changes: " + str(idx + 1) + "/" + str(len(midi_files)))
         print(time_signature_changes)
-        results.append((os.path.basename(file), time_signature_changes[0][1], 120))
+        print("Prediction: " + str(best_ts_num))
+        print(durations)
+
+        results.append((os.path.basename(file), best_ts_num, 120))
 
     np.savetxt(
         args.outfile,

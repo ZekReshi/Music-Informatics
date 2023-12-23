@@ -1,5 +1,7 @@
 import os, sys
 
+from PM2S.constants import keyName2Number
+
 sys.path.insert(0, os.path.join(sys.path[0], '..'))
 import torch
 import pandas as pd
@@ -67,8 +69,8 @@ class BaseDataset(torch.utils.data.Dataset):
         note_array = p.note_array()
         note_sequence = np.array(list(zip(note_array['pitch'], note_array['onset_sec'], note_array['duration_sec'], note_array['velocity'])))
         annotations = {
-            'time_signatures': np.array([(0, row['ts_num'])])#,
-            #'key_signatures': np.array([(0, keyName2Number[row['key']])])
+            'time_signatures': np.array([(0., row['ts_num'])]),
+            'key_signatures': np.array([(0., keyName2Number[row['key']])])
         }
 
         # Data augmentation
