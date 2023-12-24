@@ -4,8 +4,14 @@ import argparse
 import torch
 from pathlib import Path
 
+
 def save_model(args):
-    if args.feature == 'time_signature':
+    if args.feature == 'tempo':
+        from modules.tempo import TempoModule
+        module = TempoModule.load_from_checkpoint(args.model_checkpoint_path)
+        model_save_path = '../_model_state_dicts/tempo/RNNTempoModel.pth'
+
+    elif args.feature == 'time_signature':
         from modules.time_signature import TimeSignatureModule
         module = TimeSignatureModule.load_from_checkpoint(args.model_checkpoint_path)
         model_save_path = '../_model_state_dicts/time_signature/RNNTimeSignatureModel.pth'

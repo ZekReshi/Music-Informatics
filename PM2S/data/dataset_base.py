@@ -70,7 +70,8 @@ class BaseDataset(torch.utils.data.Dataset):
         note_sequence = np.array(list(zip(note_array['pitch'], note_array['onset_sec'], note_array['duration_sec'], note_array['velocity'])))
         annotations = {
             'time_signatures': np.array([(0., row['ts_num'])]),
-            'key_signatures': np.array([(0., keyName2Number[row['key']])])
+            'key_signatures': np.array([(0., keyName2Number[row['key']])]),
+            'tempo': np.array([(0., row['tempo'])])
         }
 
         # Data augmentation

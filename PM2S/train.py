@@ -1,4 +1,7 @@
 import warnings
+
+from PM2S.modules.tempo import TempoModule
+
 warnings.filterwarnings('ignore')
 import argparse
 import pytorch_lightning as pl
@@ -24,7 +27,9 @@ def train(args):
     data_module = Pm2sDataModule(args, feature=args.feature, full_train=args.full_train)
 
     # Model
-    if args.feature == 'key_signature':
+    if args.feature == 'tempo':
+        model = TempoModule()
+    elif args.feature == 'key_signature':
         model = KeySignatureModule()
     elif args.feature == 'time_signature':
         model = TimeSignatureModule()

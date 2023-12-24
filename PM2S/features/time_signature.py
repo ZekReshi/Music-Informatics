@@ -19,7 +19,6 @@ class RNNTimeSignatureProcessor(MIDIProcessor):
             self._model = RNNTimeSignatureModel()
 
     def process(self, note_seq, **kwargs):
-        # Read MIDI file into note sequence
         x = torch.tensor(note_seq).unsqueeze(0)
 
         # Forward pass
