@@ -69,8 +69,7 @@ class TimeSignatureModule(pl.LightningModule):
         loss = nn.NLLLoss(ignore_index=0)(y_tn_hat, y_tn)
 
         # Metrics
-        precs_macro_tn, recs_macro_tn, fs_macro_tn = 0, 0, 0
-        precs_weighted_tn, recs_weighted_tn, fs_weighted_tn = 0, 0, 0
+        fs_macro_tn = 0
 
         for i in range(x.shape[0]):
             # get sample from batch
@@ -83,36 +82,19 @@ class TimeSignatureModule(pl.LightningModule):
 
             # get accuracies
             (
-                prec_macro_tn, rec_macro_tn, f_macro_tn,
-                prec_weighted_tn, rec_weighted_tn, f_weighted_tn
+                _, _, f_macro_tn,
+                _, _, _
             ) = classification_report_framewise(y_tn_i, y_tn_hat_i)
-            
-            precs_macro_tn += prec_macro_tn
-            recs_macro_tn += rec_macro_tn
-            fs_macro_tn += f_macro_tn
-            precs_weighted_tn += prec_weighted_tn
-            recs_weighted_tn += rec_weighted_tn
-            fs_weighted_tn += f_weighted_tn
 
-        precs_macro_tn /= x.shape[0]
-        recs_macro_tn /= x.shape[0]
+            fs_macro_tn += f_macro_tn
+
         fs_macro_tn /= x.shape[0]
-        precs_weighted_tn /= x.shape[0]
-        recs_weighted_tn /= x.shape[0]
-        fs_weighted_tn /= x.shape[0]
 
         # Logging
         logs = {
             'val_loss': loss,
-            'val_f1_tn': fs_macro_tn,
-            'val_f1': (fs_macro_tn) / 2,
+            'val_f1': fs_macro_tn,
         }
         self.log_dict(logs, prog_bar=True)
 
         return {'loss': loss, 'logs': logs}
-
-
-
-
-
-

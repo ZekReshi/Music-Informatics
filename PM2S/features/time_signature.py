@@ -110,5 +110,5 @@ if __name__ == '__main__':
             fmt="%s",
             delimiter=",",
             comments="//",
-            header="filename,ts_num,tempo(bpm)",
+            header="filename,ts_num,tempo",
         )

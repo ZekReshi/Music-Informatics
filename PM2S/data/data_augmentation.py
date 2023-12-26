@@ -1,7 +1,7 @@
 import random
 import numpy as np
 
-from PM2S.constants import tolerance, keySharps2Number, keyNumber2Sharps
+from PM2S.constants import tolerance
 
 
 class DataAugmentation:
@@ -9,7 +9,7 @@ class DataAugmentation:
                  tempo_change_prob=1.0,
                  tempo_change_range=(0.8, 1.2),
                  pitch_shift_prob=1.0,
-                 pitch_shift_range=(-12, 12),
+                 pitch_shift_range=(-6, 6),
                  extra_note_prob=0.5,
                  missing_note_prob=0.5):
 
@@ -55,8 +55,11 @@ class DataAugmentation:
         note_sequence[:, 0] += shift
 
         for i in range(len(annotations['key_signatures'])):
-            annotations['key_signatures'][i, 1] += shift
-            annotations['key_signatures'][i, 1] %= 24
+            key = annotations['key_signatures'][i, 1]
+            minor_offset = 12 * (key // 12)
+            scale_offset = key - minor_offset
+
+            annotations['key_signatures'][i, 1] = minor_offset + (scale_offset + shift) % 12
 
         return note_sequence, annotations
 

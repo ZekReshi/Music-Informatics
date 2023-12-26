@@ -21,15 +21,15 @@ class TempoDataset(BaseDataset):
 
         for i in range(len(note_sequence)):
             onset = note_sequence[i, 1]
-            for t in tempi:
+            for t in tempo:
                 if t[0] > onset + tolerance:
                     break
-                tempi[i] = tempo
+                tempi[i] = t[1]
 
         # padding
         length = len(note_sequence)
         if length < max_length:
             note_sequence = np.concatenate([note_sequence, np.zeros((max_length - length, 4))])
-            ts_numerators = np.concatenate([tempi, np.zeros(max_length - length)])
+            tempi = np.concatenate([tempi, np.zeros((max_length - length))])
 
         return note_sequence, tempi, length

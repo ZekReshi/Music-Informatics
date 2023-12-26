@@ -43,9 +43,7 @@ class RNNKeySignatureProcessor(MIDIProcessor):
                 ks_changes.append((onset_cur, ks_cur))
                 ks_prev = ks_cur
         return ks_changes
-            
-
-
+    
 
 if __name__ == '__main__':
     import glob
@@ -113,5 +111,5 @@ if __name__ == '__main__':
             fmt="%s",
             delimiter=",",
             comments="//",
-            header="filename,ts_num,tempo(bpm)",
+            header="filename,key",
         )

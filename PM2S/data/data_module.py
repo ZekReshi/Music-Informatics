@@ -3,6 +3,7 @@ import torch
 
 from PM2S.configs import *
 from PM2S.data.dataset_key_signature import KeySignatureDataset
+from PM2S.data.dataset_tempo import TempoDataset
 from PM2S.data.dataset_time_signature import TimeSignatureDataset
 
 
@@ -17,7 +18,9 @@ class Pm2sDataModule(pl.LightningDataModule):
         self.full_train = full_train
 
     def _get_dataset(self, split):
-        if self.feature == 'key_signature':
+        if self.feature == 'tempo':
+            dataset = TempoDataset(self.workspace, split)
+        elif self.feature == 'key_signature':
             dataset = KeySignatureDataset(self.workspace, split)
         elif self.feature == 'time_signature':
             dataset = TimeSignatureDataset(self.workspace, split)
@@ -63,5 +66,3 @@ class Pm2sDataModule(pl.LightningDataModule):
             drop_last=False
         )
         return dataloader
-
-

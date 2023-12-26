@@ -71,8 +71,7 @@ class KeySignatureModule(pl.LightningModule):
         loss = nn.NLLLoss()(y_hat, y)
 
         # Metrics
-        prec_macro_all, rec_macro_all, f_macro_all = 0, 0, 0
-        prec_weighted_all, rec_weighted_all, f_weighted_all = 0, 0, 0
+        f_macro_all = 0
 
         for i in range(y_hat.shape[0]):
             # get sample from batch
@@ -81,33 +80,17 @@ class KeySignatureModule(pl.LightningModule):
 
             # get accuracies
             (
-                prec_macro, rec_macro, f_macro,
-                prec_weighted, rec_weighted, f_weighted
+                _, _, f_macro,
+                _, _, _
             ) = classification_report_framewise(y_i, y_hat_i)
 
-            prec_macro_all += prec_macro
-            rec_macro_all += rec_macro
             f_macro_all += f_macro
-            prec_weighted_all += prec_weighted
-            rec_weighted_all += rec_weighted
-            f_weighted_all += f_weighted
 
-        prec_macro_all /= y_hat.shape[0]
-        rec_macro_all /= y_hat.shape[0]
         f_macro_all /= y_hat.shape[0]
-        prec_weighted_all /= y_hat.shape[0]
-        rec_weighted_all /= y_hat.shape[0]
-        f_weighted_all /= y_hat.shape[0]
 
         # Logging
         logs = {
             'val_loss': loss,
-            'val_prec_macro': prec_macro_all,
-            'val_rec_macro': rec_macro_all,
-            'val_f_macro': f_macro_all,
-            'val_prec_weighted': prec_weighted_all,
-            'val_rec_weighted': rec_weighted_all,
-            'val_f_weighted': f_weighted_all,
             'val_f1': f_macro_all,
         }
         self.log_dict(logs, prog_bar=True)

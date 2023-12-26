@@ -20,7 +20,7 @@ class TempoModule(pl.LightningModule):
         return configure_optimizers(self)
 
     def configure_callbacks(self):
-        return configure_callbacks(monitor='val_f_b')
+        return configure_callbacks(monitor='val_f1')
 
     def training_step(self, batch, batch_idx):
         # Data
@@ -36,10 +36,10 @@ class TempoModule(pl.LightningModule):
         mask = torch.ones(y_tempo_hat.shape).to(y_tempo_hat.device)
         for i in range(y_tempo_hat.shape[0]):
             mask[i, length[i]:] = 0
-        y_tempo_hat = y_tempo_hat * mask.unsqueeze(1)
+        y_tempo_hat = y_tempo_hat * mask
 
         # Loss
-        loss = nn.NLLLoss(ignore_index=0)(y_tempo_hat, y_tempo)
+        loss = nn.NLLLoss()(y_tempo_hat, y_tempo)
 
         # Logging
         logs = {
@@ -64,7 +64,7 @@ class TempoModule(pl.LightningModule):
             y_tempo_hat[i, :, length[i]:] = 0
 
         # Loss
-        loss = nn.NLLLoss(ignore_index=0)(y_tempo_hat, y_tempo)
+        loss = nn.NLLLoss()(y_tempo_hat, y_tempo)
 
         # Metrics
         accs, precs, recs, fs = 0, 0, 0, 0
@@ -95,6 +95,7 @@ class TempoModule(pl.LightningModule):
         # Logging
         logs = {
             'val_loss': loss,
+            'val_f1': fs,
         }
         self.log_dict(logs, prog_bar=True)
 

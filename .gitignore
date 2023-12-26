@@ -300,6 +300,6 @@ pyrightconfig.json
 # End of https://www.toptal.com/developers/gitignore/api/python,pycharm,jupyternotebooks
 
 Dataset/
+mlruns/
 PM2S/workspace
 .idea
-_model_state_dicts

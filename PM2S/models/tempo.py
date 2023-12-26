@@ -15,8 +15,6 @@ class RNNTempoModel(nn.Module):
 
         self.convs = ConvBlock(in_features=in_features)
 
-        self.gru_beat = GRUBlock(in_features=hidden_size)
-        self.gru_downbeat = GRUBlock(in_features=hidden_size)
         self.gru_tempo = GRUBlock(in_features=hidden_size)
 
         self.out_tempo = LinearOutput(in_features=hidden_size, out_features=ibiVocab, activation_type='softmax')
@@ -27,9 +25,7 @@ class RNNTempoModel(nn.Module):
 
         x = self.convs(x)  # (batch_size, seq_len, hidden_size)
 
-        x_gru_beat = self.gru_beat(x)  # (batch_size, seq_len, hidden_size)
-        x_gru_downbeat = self.gru_downbeat(x_gru_beat)  # (batch_size, seq_len, hidden_size)
-        x_gru_tempo = self.gru_tempo(x_gru_downbeat)  # (batch_size, seq_len, hidden_size)
+        x_gru_tempo = self.gru_tempo(x)  # (batch_size, seq_len, hidden_size)
 
         y_tempo = self.out_tempo(x_gru_tempo)  # (batch_size, seq_len, ibiVocab)
 
