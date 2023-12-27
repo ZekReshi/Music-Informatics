@@ -6,33 +6,27 @@ import os
 from concurrent.futures import ProcessPoolExecutor
 from tqdm import tqdm
 
-from typing import Union, Tuple, Iterable, Optional, Dict
+from typing import Tuple, Iterable, Dict, List
 
 import numpy as np
 import partitura as pt
 
 from partitura.utils.misc import PathLike
-from partitura.performance import PerformanceLike
 
 from scipy.signal import find_peaks
 
 from hiddenmarkov import HMM, ConstantTransitionModel, ObservationModel
 
-from meter_estimation_utils import (
-    get_frames_quantized,
-    get_frames_chordify,
-    compute_autocorrelation,
-)
+from meter_estimation_utils import get_frames_chordify, compute_autocorrelation
 
-from meter_estimation_challenge import load_submission, compare_meter_and_tempo
+from meter_estimation_challenge import load_submission
 
 import warnings
 
 warnings.filterwarnings("ignore")
 
 
-FRAMERATE = 8
-CHORD_SPREAD_TIME = 0.05  # for onset aggregation
+FRAMERATE = 16
 
 
 class MeterObservationModel(ObservationModel):
@@ -104,28 +98,6 @@ def createHMM(
     beats_per_measure: int = 4,
     subbeats_per_beat: int = 2,
 ) -> Tuple[MeterObservationModel, ConstantTransitionModel]:
-    """
-    Create observation and transition models for the HMM
-
-    Parameters
-    ----------
-    tempo : float
-        Tempo in beats per minute
-    frame_rate: int
-        Number of frames per beat. Selecting a large frame_rate can result
-        in very slow models!
-    beats_per_measure: int
-        Number of beats per measure (numerator of the time signature)
-    subbeats_per_beat: int
-        Number of divisions per beat (generally 2 or 3)
-
-    Returns
-    -------
-    observation_model: MeterObservationModel
-        The observation model of the HMM
-    transition_model: ConstantTransitionModel
-        The transition model of the HMM
-    """
     frames_per_beat = 60 / tempo * frame_rate
     frames_per_measure = frames_per_beat * beats_per_measure
     states = int(frames_per_measure)
@@ -149,12 +121,57 @@ def createHMM(
     return observation_model, transition_model
 
 
+def subbeats_from_durations(note_array: np.ndarray):
+    durations = note_array["duration_sec"]
+    hist, bins = np.histogram(durations, bins=100)
+
+    peaks, _ = find_peaks(hist, prominence=20)
+
+    if len(peaks) > 1:
+        candidate = bins[peaks[1]] / bins[peaks[0]]
+        if 1.9 < candidate < 2.1:
+            return [2]
+        if 2.9 < candidate < 3.1:
+            return [3]
+    return [2, 3]
+
+
+def tempi_from_iois(note_array: np.ndarray, min_tempo: float, max_tempo: float, subbeats_per_beat: List[int]):
+    IOIs = np.diff(np.sort(note_array["onset_sec"]))
+    hist, bins = np.histogram(IOIs, bins=100)
+
+    valid_from = 0
+    for i in range(len(bins)):
+        if bins[i] >= 1 / 16:
+            valid_from = i
+            break
+
+    new_hist = []
+    new_labels = []
+    for i in range(valid_from - 1, len(hist) - 1):
+        new_hist.append((hist[i-1] + hist[i] + hist[i+1]) / 3)
+        new_labels.append((bins[i+1] + bins[i]) / 2)
+
+    peaks, _ = find_peaks(new_hist, prominence=5)
+
+    if len(peaks) == 0:
+        return []
+
+    subbeat_duration = new_labels[peaks[0]]
+    subbeats_per_minute = 60 / subbeat_duration
+    tempi = []
+    for sbpb in subbeats_per_beat:
+        beats_per_minute = subbeats_per_minute / sbpb
+        for i in range(3):
+            tempo = beats_per_minute / (2 ** i)
+            if min_tempo < tempo < max_tempo:
+                tempi.append(tempo)
+    return tempi
+
+
 def estimate_tempo(
     filename: PathLike,
     beats_per_measure: int,
-    subbeats_per_beat: Iterable[int] = [2, 3],
-    tempi: Union[Iterable[int], str] = "auto",
-    frame_aggregation: str = "chordify",
     value_aggregation: str = "num_notes",
     framerate: int = FRAMERATE,
     frame_threshold: float = 0.0,
@@ -179,22 +196,18 @@ def estimate_tempo(
     # get note array
     performance = pt.load_performance_midi(filename)
     note_array = performance.note_array()
+    subbeats_per_beat = subbeats_from_durations(note_array)
+    tempi = tempi_from_iois(note_array, min_tempo, max_tempo, subbeats_per_beat)
+    if len(tempi) == 0:
+        tempi = "auto"
 
-    if frame_aggregation == "chordify":
-        frames = get_frames_chordify(
-            note_array=note_array,
-            framerate=framerate,
-            chord_spread_time=chord_spread_time,
-            aggregation=value_aggregation,
-            threshold=frame_threshold,
-        )
-    elif frame_aggregation == "quantize":
-        frames = get_frames_quantized(
-            note_array=note_array,
-            framerate=framerate,
-            aggregation=value_aggregation,
-            threshold=frame_threshold,
-        )
+    frames = get_frames_chordify(
+        note_array=note_array,
+        framerate=framerate,
+        chord_spread_time=chord_spread_time,
+        aggregation=value_aggregation,
+        threshold=frame_threshold,
+    )
 
     if tempi == "auto":
         autocorr = compute_autocorrelation(frames)
