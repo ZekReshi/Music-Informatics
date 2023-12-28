@@ -136,7 +136,7 @@ def subbeats_from_durations(note_array: np.ndarray):
     return [2, 3]
 
 
-def tempi_from_iois(note_array: np.ndarray, min_tempo: float, max_tempo: float, subbeats_per_beat: List[int]):
+def tempi_from_iois(note_array: np.ndarray, min_tempo: float, max_tempo: float):
     IOIs = np.diff(np.sort(note_array["onset_sec"]))
     hist, bins = np.histogram(IOIs, bins=100)
 
@@ -157,15 +157,13 @@ def tempi_from_iois(note_array: np.ndarray, min_tempo: float, max_tempo: float, 
     if len(peaks) == 0:
         return []
 
-    subbeat_duration = new_labels[peaks[0]]
-    subbeats_per_minute = 60 / subbeat_duration
+    beat_duration = new_labels[peaks[0]]
+    beats_per_minute = 60 / beat_duration
     tempi = []
-    for sbpb in subbeats_per_beat:
-        beats_per_minute = subbeats_per_minute / sbpb
-        for i in range(3):
-            tempo = beats_per_minute / (2 ** i)
-            if min_tempo < tempo < max_tempo:
-                tempi.append(tempo)
+    for i in range(3):
+        tempo = beats_per_minute / (2 ** i)
+        if min_tempo < tempo < max_tempo:
+            tempi.append(tempo)
     return tempi
 
 
@@ -197,7 +195,7 @@ def estimate_tempo(
     performance = pt.load_performance_midi(filename)
     note_array = performance.note_array()
     subbeats_per_beat = subbeats_from_durations(note_array)
-    tempi = tempi_from_iois(note_array, min_tempo, max_tempo, subbeats_per_beat)
+    tempi = tempi_from_iois(note_array, min_tempo, max_tempo)
     if len(tempi) == 0:
         tempi = "auto"
 
