@@ -1,27 +1,50 @@
 import random as rd
 
+
+ONSET = 'O'
+HOLD = '-'
+MUTE = 'X'
+
+
 rules = {
     "FullBar": [
-        [0.15, 0.3, 0.3, 0.25],
+        {
+            'slow': [0.3, 0.2, 0.5, 0, 0],
+            'normal': [0.15, 0.3, 0.3, 0.25, 0],
+            'fast': [0, 0.3, 0, 0.3, 0.4]
+        },
         ["Whole"],
         ["HalfBar", "HalfBar"],
         ["SlowHalfBar", "HalfBar"],
-        ["HalfBar", "FastHalfBar"]
+        ["HalfBar", "FastHalfBar"],
+        ["FastHalfBar", "FastHalfBar"]
     ],
     "HalfBar": [
-        [0.4, 0.3, 0.3],
+        {
+            'slow': [1, 0, 0],
+            'normal': [0.4, 0.3, 0.3],
+            'fast': [0.1, 0.45, 0.45]
+        },
         ["Quarter", "Quarter"],
         ["Quarter", "Eighth", "Eighth"],
         ["Eighth", "Eighth", "Quarter"]
     ],
     "SlowHalfBar": [
-        [0.4, 0.3, 0.3],
+        {
+            'slow': [0.6, 0.2, 0.2],
+            'normal': [0.4, 0.3, 0.3],
+            'fast': [0.2, 0.4, 0.4]
+        },
         ["Half"],
         ["QuarterExt", "Eighth"],
         ["Eighth", "QuarterExt"]
     ],
     "FastHalfBar": [
-        [0.5, 0.125, 0.125, 0.125, 0.125],
+        {
+            'slow': [1, 0, 0, 0, 0],
+            'normal': [0.5, 0.125, 0.125, 0.125, 0.125],
+            'fast': [0.1, 0.225, 0.225, 0.225, 0.225]
+        },
         ["Eighth", "Eighth", "Eighth", "Eighth"],
         ["Sixteenth", "Sixteenth", "Eighth", "Eighth", "Eighth"],
         ["Eighth", "Sixteenth", "Sixteenth", "Eighth", "Eighth"],
@@ -30,32 +53,31 @@ rules = {
     ],
     "Whole": [
         [1],
-        ["O---------------"]
+        [ONSET] + [HOLD for _ in range(15)]
     ],
     "Half": [
-        [0.85, 0.15],
-        ["O-------"],
-        ["XXXXXXXX"]
+        [1],
+        [ONSET] + [HOLD for _ in range(7)]
     ],
     "Quarter": [
-        [0.85, 0.15],
-        ["O---"],
-        ["XXXX"]
+        [0.9, 0.1],
+        [ONSET] + [HOLD for _ in range(3)],
+        [MUTE for _ in range(4)]
     ],
     "QuarterExt": [
-        [0.85, 0.15],
-        ["O-----"],
-        ["XXXXXX"]
+        [0.9, 0.1],
+        [ONSET] + [HOLD for _ in range(5)],
+        [MUTE for _ in range(6)]
     ],
     "Eighth": [
-        [0.85, 0.15],
-        ["O-"],
-        ["XX"]
+        [0.85, 0.10],
+        [ONSET + HOLD],
+        [MUTE + MUTE]
     ],
     "Sixteenth": [
-        [0.85, 0.15],
-        ["O"],
-        ["X"]
+        [0.9, 0.1],
+        [ONSET],
+        [MUTE]
     ]
 }
 
@@ -71,11 +93,12 @@ def generate_items(items):
             yield item
 
 
-def expansion(start):
+def expansion(start, speed: str = 'normal'):
     for element in start:
         if element in rules:
             loc = start.index(element)
-            start[loc] = rd.choices(rules[element][1:], weights=rules[element][0])
+            weights = rules[element][0]
+            start[loc] = rd.choices(rules[element][1:], weights=weights if type(weights) is list else weights[speed])
         result = [item for item in generate_items(start)]
 
     for item in result:
@@ -86,12 +109,19 @@ def expansion(start):
     return result
 
 
+def get_rhythm(bars: int = 8, speed: str = 'normal', double_bars: bool = True):
+    rhythm = ""
+    for i in range(bars if not double_bars else bars // 2):
+        bar = expansion(["FullBar"], speed=speed)
+        bar_str = to_string(bar)
+        rhythm += bar_str + bar_str if double_bars and i < bars-1 else bar_str
+
+    return rhythm
+
+
 def to_string(result):
     return ''.join(result)
 
 
 if __name__ == '__main__':
-    for _ in range(8):
-        result = expansion(["FullBar"])  # Expand our starting list
-        final = to_string(result)
-        print(final)  # Print the final result
+    print(get_rhythm())
