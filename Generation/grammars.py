@@ -31,7 +31,7 @@ rules = {
     ],
     "SlowHalfBar": [
         {
-            'slow': [0.6, 0.2, 0.2],
+            'slow': [1, 0, 0],
             'normal': [0.4, 0.3, 0.3],
             'fast': [0.2, 0.4, 0.4]
         },
@@ -104,7 +104,7 @@ def expansion(start, speed: str = 'normal'):
     for item in result:
         if not isinstance(item, list):
             if item in rules:
-                result = expansion(result)
+                result = expansion(result, speed)
 
     return result
 

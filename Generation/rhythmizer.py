@@ -86,4 +86,5 @@ if __name__ == '__main__':
 
     p = pt.load_performance(args.infile)
     pp = pt.performance.PerformedPart.from_note_array(rhythmize(p.note_array()))
-    pt.save_wav(pp, args.outfile)
+    pt.save_wav(pp, args.outfile + '.wav')
+    pt.save_performance_midi(pp, args.outfile + '.mid')
