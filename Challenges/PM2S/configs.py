@@ -5,4 +5,4 @@ max_length = 500 # maximum length of input sequence
 
 batch_size = 64
 
-num_workers = 4
+num_workers = 0
