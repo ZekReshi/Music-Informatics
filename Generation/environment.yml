@@ -1,0 +1,18 @@
+name: pm2s
+
+channels:
+  - anaconda
+  - pytorch
+  - defaults
+  - nvidia
+  - conda-forge
+
+dependencies:
+  - python=3.9
+  - numpy==1.26.0
+  - pytorch==2.1.2
+  - tqdm==4.65.0
+  - pip==23.2.1
+
+  - pip:
+    - partitura==1.4.0
