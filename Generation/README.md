@@ -2,10 +2,6 @@
 
 Create a new conda environment using environment.yml.
 
-* Activate your environment and execute this commands:
-  * pip install --force-reinstall charset-normalizer==3.1.0
-  * pip install --force-reinstall numpy==1.23.0
-
 # Creating a song
 
 ## Synthetization

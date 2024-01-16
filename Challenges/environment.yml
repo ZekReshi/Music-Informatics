@@ -1,4 +1,4 @@
-name: pm2s
+name: TSJ_Challenges
 
 channels:
   - anaconda
@@ -16,6 +16,11 @@ dependencies:
   - cudatoolkit=11.3
   - pytorch-lightning=2.1.2
   - torchvision=0.16.2
+  - jupyter==1.0.0
+  - matplotlib==3.7.2
 
   - pip:
     - partitura==1.4.0
+    - fastdtw==0.3.4
+    - python-hiddenmarkov==0.1.3
+    - parangonar==1.0.0
