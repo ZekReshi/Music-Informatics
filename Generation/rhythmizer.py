@@ -3,7 +3,7 @@ import argparse
 import numpy as np
 import partitura as pt
 
-from Generation.grammars import get_rhythm, ONSET, HOLD, MUTE
+from grammars import get_rhythm, ONSET, HOLD, MUTE
 
 import warnings
 warnings.filterwarnings("ignore")
