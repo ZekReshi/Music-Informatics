@@ -2,14 +2,18 @@
 
 Create a new conda environment using environment.yml.
 
+* Activate your environment and execute this commands:
+  * pip install --force-reinstall charset-normalizer==3.1.0
+  * pip install --force-reinstall numpy==1.23.0
+
 # Creating a song
 
 ## Synthetization
-First midi pitches are generated using music_generation_rnn.ipynb
-Train a model or use our pre-trained model to generate pitches using the last few cells of the notebook.
+First the melody is generated using music_generation_rnn.ipynb
+Train a model or use our pre-trained model to generate notes using the last few cells of the notebook.
 
 ## Rhythmization
-Execute rhythmizer.py, as infile argument you set the .mid file containing the pitches, as outfile argument you set 
+Execute rhythmizer.py, as infile argument you set the .mid file containing the synthesized notes, as outfile argument you set 
 how your output should be named, but without a file ending, as both a .mid and a .wav file will be created.
 
 ## Harmonization
