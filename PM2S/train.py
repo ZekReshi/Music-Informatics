@@ -1,7 +1,5 @@
 import warnings
 
-from PM2S.modules.tempo import TempoModule
-
 warnings.filterwarnings('ignore')
 import argparse
 import pytorch_lightning as pl
@@ -36,17 +34,9 @@ def train(args):
     else:
         raise ValueError('Invalid feature type.')
 
-    # Logger
-    #logger = pl.loggers.MLFlowLogger(
-    #    experiment_name='{}-training'.format(args.feature),
-    #    tracking_uri=os.path.join(args.workspace, 'mlruns'),
-    #    run_name='run-0',
-    #)
-
     # Trainer
     trainer = pl.Trainer(
         default_root_dir=os.path.join(args.workspace, 'mlruns'),
-        #logger=logger,
         log_every_n_steps=50,
         reload_dataloaders_every_n_epochs=True
     )

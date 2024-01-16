@@ -1,4 +1,4 @@
-name: pm2s
+name: TSJ_Generation
 
 channels:
   - anaconda
@@ -9,10 +9,15 @@ channels:
 
 dependencies:
   - python=3.9
-  - numpy==1.26.0
+  - numpy==1.23.0
   - pytorch==2.1.2
   - tqdm==4.65.0
   - pip==23.2.1
+  - pretty_midi==0.2.9
+  - jupyter==1.0.0
+  - pandas==2.0.3
+  - seaborn==0.12.2
 
   - pip:
     - partitura==1.4.0
+    - tensorflow==2.15.0
